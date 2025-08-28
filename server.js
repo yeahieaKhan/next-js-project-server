@@ -31,6 +31,7 @@ async function run() {
 
     const nextProjects = client.db("next_projectDB");
     const productsCollection = nextProjects.collection("products");
+    const usersCollections = nextProjects.collection("users");
 
     // GET all products
     app.get("/api/productItem", async (req, res) => {
@@ -62,6 +63,71 @@ async function run() {
       } catch (err) {
         console.error(err);
         res.status(500).json({ message: "Failed to get product" });
+      }
+    });
+
+    // ✅ API: Get all products sorted by top price
+    app.get("/top-price", async (req, res) => {
+      const products = await productsCollection
+        .find()
+        .sort({ price: -1 })
+        .limit(6) // descending order
+        .toArray();
+      res.json(products);
+    });
+
+    // users
+
+    // Register API
+
+    app.post("/api/register", async (req, res) => {
+      try {
+        const { username, password } = req.body;
+
+        if (!username || !password) {
+          return res
+            .status(400)
+            .json({ message: "username and password are required" });
+        }
+
+        const existingUser = await usersCollections.findOne({ username });
+        if (existingUser) {
+          return res.status(400).json({ message: "User already exists" });
+        }
+
+        const result = await usersCollections.insertOne({ username, password });
+        res
+          .status(201)
+          .json({
+            message: "User registered successfully!",
+            userId: result.insertedId,
+          });
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Error registering user", error });
+      }
+    });
+
+    // Login API
+    app.post("/api/login", async (req, res) => {
+      try {
+        const { username, password } = req.body;
+
+        // Find user in MongoDB collection
+        const user = await usersCollections.findOne({
+          username: username,
+          password: password, // plain password
+        });
+
+        if (!user) {
+          return res.status(401).json({ message: "Invalid credentials" });
+        }
+
+        // Return full user including password
+        return res.json({ user });
+      } catch (error) {
+        console.error("Login error:", error);
+        res.status(500).json({ message: "Server error" });
       }
     });
 
